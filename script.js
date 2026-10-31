@@ -11,6 +11,32 @@ const windUrl = "https://api.open-meteo.com/v1/forecast?latitude=32.80&longitude
   + "&hourly=wind_speed_10m,wind_direction_10m"
   + "&forecast_days=5&timezone=America/Los_Angeles&wind_speed_unit=mph";
 
+// Surf spots we might want to rank, listed north to south.
+// - latitude / longitude: roughly where the waves break (approximate, worth double-checking)
+// - facingDegrees: the compass direction the beach looks out toward the ocean
+//   (270 = due west). Later we'll use this to tell offshore wind from onshore wind,
+//   and whether a swell is pointed at the spot or missing it.
+// Trestles is in Orange County, about 45 miles from Old Man's, so it's handy
+// for testing the radius setting later.
+const surfSpots = [
+  { name: "Trestles (Lowers)", area: "San Clemente", latitude: 33.382, longitude: -117.589, facingDegrees: 225 },
+  { name: "Oceanside Pier", area: "Oceanside", latitude: 33.193, longitude: -117.386, facingDegrees: 245 },
+  { name: "Tamarack", area: "Carlsbad", latitude: 33.148, longitude: -117.348, facingDegrees: 250 },
+  { name: "Ponto", area: "South Carlsbad", latitude: 33.087, longitude: -117.312, facingDegrees: 255 },
+  { name: "Beacon's", area: "Leucadia", latitude: 33.065, longitude: -117.304, facingDegrees: 255 },
+  { name: "Swami's", area: "Encinitas", latitude: 33.034, longitude: -117.295, facingDegrees: 255 },
+  { name: "Cardiff Reef", area: "Cardiff", latitude: 33.014, longitude: -117.283, facingDegrees: 250 },
+  { name: "15th Street", area: "Del Mar", latitude: 32.958, longitude: -117.269, facingDegrees: 265 },
+  { name: "Black's Beach", area: "La Jolla", latitude: 32.879, longitude: -117.253, facingDegrees: 270 },
+  { name: "La Jolla Shores", area: "La Jolla", latitude: 32.858, longitude: -117.257, facingDegrees: 290 },
+  { name: "Windansea", area: "La Jolla", latitude: 32.830, longitude: -117.281, facingDegrees: 265 },
+  { name: "Old Man's (Tourmaline)", area: "Pacific Beach", latitude: 32.805, longitude: -117.264, facingDegrees: 250 },
+  { name: "Crystal Pier", area: "Pacific Beach", latitude: 32.797, longitude: -117.258, facingDegrees: 245 },
+  { name: "Ocean Beach Pier", area: "Ocean Beach", latitude: 32.749, longitude: -117.256, facingDegrees: 260 },
+  { name: "Sunset Cliffs", area: "Point Loma", latitude: 32.722, longitude: -117.256, facingDegrees: 265 },
+  { name: "Imperial Beach Pier", area: "Imperial Beach", latitude: 32.579, longitude: -117.135, facingDegrees: 255 },
+];
+
 // Fetch a web address and turn the reply into data.
 // If the server replies with an error (like "500 Server Error"), stop here
 // so the page can show a friendly message instead.
@@ -199,6 +225,23 @@ function showLoadError(error) {
   document.getElementById("wind").textContent = "";
   document.getElementById("forecast").textContent = "";
 }
+
+// Show the list of surf spots: one line each with the name, the area,
+// and which way the beach faces (like "faces WSW").
+function showSurfSpots() {
+  const spotList = document.getElementById("spot-list");
+  for (const spot of surfSpots) {
+    const spotItem = makeElement("li", "spot-item", "");
+    spotItem.appendChild(makeElement("span", "spot-item-name", spot.name));
+    spotItem.appendChild(makeElement("span", "spot-item-detail",
+      spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
+    spotList.appendChild(spotItem);
+  }
+}
+
+// The spot list doesn't need any data from the internet,
+// so show it straight away, even if the forecast fails to load
+showSurfSpots();
 
 // Fetch the waves and the wind at the same time, then wait until BOTH have arrived.
 // The forecast needs both, so it's simpler to handle them together.

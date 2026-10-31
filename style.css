@@ -170,6 +170,49 @@ h1 {
   border-left: 8px solid var(--burnt-orange);
 }
 
+/* ---------- Surf spot list ---------- */
+/* Same sticker-style box as the other sections, with a teal shadow */
+.surf-spots {
+  padding: 4px 16px 12px 16px;
+  margin-bottom: 24px;
+  background-color: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--pool-teal);
+}
+
+.surf-spots .section-title {
+  margin-top: 12px;
+}
+
+/* Remove the list bullets and indent */
+#spot-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One spot per row, with a thin dashed line between rows */
+.spot-item {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--faded-ink);
+}
+
+.spot-item:last-child {
+  border-bottom: none;
+}
+
+/* "display: block" puts the name and the detail on their own lines */
+.spot-item-name {
+  display: block;
+  font-weight: bold;
+}
+
+.spot-item-detail {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--faded-ink);
+}
+
 /* ---------- Phones ---------- */
 /* On narrow screens, show the blocks 2 across instead of 4,
    and shrink the big text so it fits */
