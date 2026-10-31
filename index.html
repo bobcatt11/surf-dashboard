@@ -5,14 +5,29 @@
     <!-- Makes the page fit phone screens instead of showing a zoomed-out desktop view -->
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Surf Dashboard</title>
+    <!-- Two free Google Fonts: chunky "Bowlby One" for headings,
+         hand-drawn "Permanent Marker" for the scrawled bits -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Permanent+Marker&display=swap">
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <h1>Surf Dashboard</h1>
-    <h2>Old Man's (Tourmaline), San Diego</h2>
-    <p id="waves">Loading waves...</p>
-    <p id="wind">Loading wind...</p>
-    <h2>5-Day Forecast</h2>
+    <!-- Page title, with a skate-shoe checkerboard strip underneath -->
+    <header class="page-header">
+      <h1>Surf Dashboard</h1>
+      <p class="spot-name">Old Man's (Tourmaline), San Diego</p>
+      <div class="checkerboard"></div>
+    </header>
+
+    <!-- Conditions right now -->
+    <section class="right-now">
+      <h2 class="section-title">Right Now</h2>
+      <p id="waves">Loading waves...</p>
+      <p id="wind">Loading wind...</p>
+    </section>
+
+    <h2 class="section-title">5-Day Forecast</h2>
     <div id="forecast">Loading 5-day forecast...</div>
 
     <!-- All the page's JavaScript lives in script.js -->
