@@ -220,6 +220,14 @@ h1 {
   color: var(--faded-ink);
 }
 
+/* "Forecast for Sunday, Nov 1, 6–9 AM" */
+#spot-forecast-time {
+  margin: 0 0 4px 0;
+  font-family: "Permanent Marker", cursive;
+  font-size: 1.1rem;
+  color: var(--burnt-orange);
+}
+
 /* Remove the list bullets and indent */
 #spot-list {
   margin: 0;
@@ -247,6 +255,18 @@ h1 {
   display: block;
   font-size: 0.95rem;
   color: var(--faded-ink);
+}
+
+/* The forecast line under each spot */
+.spot-forecast {
+  display: block;
+  margin-top: 2px;
+}
+
+/* The wave height is the most important number, so make it chunky */
+.spot-forecast-waves {
+  font-family: "Bowlby One", Impact, sans-serif;
+  font-weight: normal;
 }
 
 /* ---------- Phones ---------- */

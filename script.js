@@ -159,16 +159,24 @@ function rateBlock(summary) {
   return { label: "Poor", className: "rating-poor" };
 }
 
-// Build the box for one time block: the time, a big wave height,
-// then the wave period/direction and the wind underneath.
+// Turn a time block's numbers into short bits of text, like
+// "2.8–3.1 ft", "12 s from WSW" and "Wind 5 mph from E".
+// Both the 5-day forecast and the surf spot list use this.
 // toFixed(1) rounds to 1 decimal place, Math.round rounds to a whole number.
-function makeBlockBox(label, summary) {
+function describeConditions(summary) {
   let waveText = summary.smallestWave.toFixed(1) + "–" + summary.biggestWave.toFixed(1) + " ft";
   if (summary.smallestWave.toFixed(1) === summary.biggestWave.toFixed(1)) {
     waveText = summary.smallestWave.toFixed(1) + " ft";
   }
   const swellText = Math.round(summary.averagePeriod) + " s from " + toCompassPoint(summary.waveDirection);
   const windText = "Wind " + Math.round(summary.averageWindSpeed) + " mph from " + toCompassPoint(summary.windDirection);
+  return { waveText, swellText, windText };
+}
+
+// Build the box for one time block: the time, a big wave height,
+// then the wave period/direction and the wind underneath.
+function makeBlockBox(label, summary) {
+  const { waveText, swellText, windText } = describeConditions(summary);
 
   // The rating adds a colour class to the box, plus a word ("Good") so it
   // still makes sense for anyone who can't easily tell the colours apart
@@ -279,8 +287,100 @@ function showSurfSpots() {
     spotItem.appendChild(makeElement("span", "spot-item-name", spot.name));
     spotItem.appendChild(makeElement("span", "spot-item-detail",
       Math.round(spot.distance) + " mi · " + spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
+    spotItem.appendChild(makeSpotForecastLine(spot));
     spotList.appendChild(spotItem);
   }
+}
+
+// ---------- Forecasts for every surf spot ----------
+
+// Where the spot forecasts are up to: "loading", "ready" or "failed".
+// The spot list uses this to decide what to show under each spot.
+let spotForecastStatus = "loading";
+
+// Build the forecast line shown under one spot, like
+// "2.8–3.1 ft · 12 s from WSW · Wind 5 mph from E".
+// While loading (or if it failed) it shows a short message instead.
+function makeSpotForecastLine(spot) {
+  if (spotForecastStatus === "loading") {
+    return makeElement("span", "spot-forecast", "Loading forecast...");
+  }
+  if (spotForecastStatus === "failed" || !spot.morningSummary) {
+    return makeElement("span", "spot-forecast", "Forecast unavailable");
+  }
+  const { waveText, swellText, windText } = describeConditions(spot.morningSummary);
+  const forecastLine = makeElement("span", "spot-forecast", "");
+  forecastLine.appendChild(makeElement("strong", "spot-forecast-waves", waveText));
+  forecastLine.appendChild(document.createTextNode(" · " + swellText + " · " + windText));
+  return forecastLine;
+}
+
+// Find the date of the next 6–9 AM block that hasn't finished yet.
+// We look for the first 8 AM hour (the last hour of the block) that is
+// still now or later. Before 9 AM that's today; after 9 AM it's tomorrow.
+// The times are text like "2026-10-31T08:00", and text in this format
+// sorts in time order, so ">=" works for "is this now or later?".
+function findNextMorningDate(hourlyTimes, currentTime) {
+  for (const time of hourlyTimes) {
+    const hour = Number(time.slice(11, 13));
+    if (hour === 8 && time >= currentTime.slice(0, 13)) {
+      return time.slice(0, 10);
+    }
+  }
+  return null;
+}
+
+// Ask Open-Meteo for the waves and wind at every spot at once.
+// Open-Meteo lets one request cover many places: we list all the latitudes
+// separated by commas, then all the longitudes in the same order, and it
+// replies with a list of forecasts in that same order.
+// Doing this once when the page opens means changing the radius or zip
+// code doesn't need to fetch anything new.
+function loadSpotForecasts() {
+  const latitudes = surfSpots.map(spot => spot.latitude).join(",");
+  const longitudes = surfSpots.map(spot => spot.longitude).join(",");
+  const spotWaveUrl = "https://marine-api.open-meteo.com/v1/marine?latitude=" + latitudes
+    + "&longitude=" + longitudes
+    + "&current=wave_height"
+    + "&hourly=wave_height,wave_period,wave_direction"
+    + "&forecast_days=5&timezone=America/Los_Angeles&length_unit=imperial";
+  const spotWindUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + latitudes
+    + "&longitude=" + longitudes
+    + "&hourly=wind_speed_10m,wind_direction_10m"
+    + "&forecast_days=5&timezone=America/Los_Angeles&wind_speed_unit=mph";
+
+  Promise.all([fetchData(spotWaveUrl), fetchData(spotWindUrl)])
+    .then(([waveList, windList]) => {
+      // Work out which morning to show, using the current San Diego time
+      // that the wave forecast sends back
+      const firstWaveHourly = waveList[0].hourly;
+      const morningDate = findNextMorningDate(firstWaveHourly.time, waveList[0].current.time);
+      const morningPositions = findHoursInBlock(firstWaveHourly.time, morningDate, 6);
+
+      // Add that morning's summary onto each spot, in the same order as surfSpots.
+      // If the ocean model has no wave data for a spot (it sends "null",
+      // which can happen right at the shoreline), leave it out rather than
+      // pretend the waves are 0 ft. The list then says "Forecast unavailable".
+      surfSpots.forEach((spot, position) => {
+        const waveHourly = waveList[position].hourly;
+        const hasWaveData = morningPositions.every(hour => waveHourly.wave_height[hour] !== null);
+        spot.morningSummary = hasWaveData
+          ? summarizeBlock(waveHourly, windList[position].hourly, morningPositions)
+          : null;
+      });
+
+      document.getElementById("spot-forecast-time").textContent =
+        "Forecast for " + formatDayLabel(morningDate) + ", 6–9 AM";
+      spotForecastStatus = "ready";
+      showSurfSpots();
+    })
+    .catch(error => {
+      console.error(error);
+      spotForecastStatus = "failed";
+      document.getElementById("spot-forecast-time").textContent =
+        "Sorry, we couldn't load the spot forecasts right now. Try refreshing in a minute.";
+      showSurfSpots();
+    });
 }
 
 // Look up a US zip code and measure distances from there.
@@ -326,9 +426,10 @@ function findZipCode(event) {
 document.getElementById("zip-form").addEventListener("submit", findZipCode);
 document.getElementById("radius").addEventListener("input", showSurfSpots);
 
-// The spot list doesn't need any data from the internet,
-// so show it straight away, even if the forecast fails to load
+// Show the spot list straight away (saying "Loading forecast..."),
+// then fetch the spot forecasts and fill them in when they arrive
 showSurfSpots();
+loadSpotForecasts();
 
 // Fetch the waves and the wind at the same time, then wait until BOTH have arrived.
 // The forecast needs both, so it's simpler to handle them together.
