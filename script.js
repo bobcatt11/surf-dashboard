@@ -96,22 +96,35 @@ function summarizeBlock(waveHourly, windHourly, positions) {
   };
 }
 
-// Turn a block summary into one line of text.
+// Make a small piece of the page: a tag (like "p") with a CSS class and some text
+function makeElement(tagName, className, text) {
+  const element = document.createElement(tagName);
+  element.className = className;
+  element.textContent = text;
+  return element;
+}
+
+// Build the box for one time block: the time, a big wave height,
+// then the wave period/direction and the wind underneath.
 // toFixed(1) rounds to 1 decimal place, Math.round rounds to a whole number.
-function describeBlock(summary) {
+function makeBlockBox(label, summary) {
   let waveText = summary.smallestWave.toFixed(1) + "–" + summary.biggestWave.toFixed(1) + " ft";
   if (summary.smallestWave.toFixed(1) === summary.biggestWave.toFixed(1)) {
     waveText = summary.smallestWave.toFixed(1) + " ft";
   }
-  return "Waves " + waveText
-    + " at " + Math.round(summary.averagePeriod) + " s"
-    + " from " + summary.waveDirection + "°"
-    + " · Wind " + Math.round(summary.averageWindSpeed) + " mph"
-    + " from " + summary.windDirection + "°";
+  const swellText = Math.round(summary.averagePeriod) + " s from " + summary.waveDirection + "°";
+  const windText = "Wind " + Math.round(summary.averageWindSpeed) + " mph from " + summary.windDirection + "°";
+
+  const blockBox = makeElement("div", "time-block", "");
+  blockBox.appendChild(makeElement("p", "block-time", label));
+  blockBox.appendChild(makeElement("p", "block-waves", waveText));
+  blockBox.appendChild(makeElement("p", "block-detail", swellText));
+  blockBox.appendChild(makeElement("p", "block-detail", windText));
+  return blockBox;
 }
 
-// Build the 5-day forecast: a heading for each day,
-// followed by a list of its 4 time blocks.
+// Build the 5-day forecast: a card for each day,
+// holding a row of its 4 time blocks.
 // Both APIs return the same list of hours, so position 0 in the wave
 // data is the same hour as position 0 in the wind data.
 function showForecast(waveData, windData) {
@@ -131,20 +144,17 @@ function showForecast(waveData, windData) {
   forecastArea.textContent = "";
 
   for (const date of dates) {
-    const dayHeading = document.createElement("h3");
-    dayHeading.textContent = formatDayLabel(date);
-    forecastArea.appendChild(dayHeading);
+    const dayCard = makeElement("section", "day-card", "");
+    dayCard.appendChild(makeElement("h3", "day-name", formatDayLabel(date)));
 
-    const blockList = document.createElement("ul");
+    const blockRow = makeElement("div", "time-blocks", "");
     for (const block of timeBlocks) {
       const positions = findHoursInBlock(waveHourly.time, date, block.startHour);
       const summary = summarizeBlock(waveHourly, windHourly, positions);
-
-      const blockItem = document.createElement("li");
-      blockItem.textContent = block.label + ": " + describeBlock(summary);
-      blockList.appendChild(blockItem);
+      blockRow.appendChild(makeBlockBox(block.label, summary));
     }
-    forecastArea.appendChild(blockList);
+    dayCard.appendChild(blockRow);
+    forecastArea.appendChild(dayCard);
   }
 }
 

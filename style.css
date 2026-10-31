@@ -1,3 +1,86 @@
-/* Styles for the surf dashboard.
-   Empty for now: the page looks the same as before.
-   We'll add the forecast layout here in step 4. */
+/* ---------- Whole page ---------- */
+/* A clean, readable font, comfortable text size, and a soft ocean background */
+body {
+  margin: 0 auto;
+  padding: 16px;
+  max-width: 960px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  color: #0b2540;
+  background-color: #eef5fa;
+}
+
+h1 {
+  margin-bottom: 0;
+}
+
+h2 {
+  margin-top: 4px;
+  font-size: 1.15rem;
+  font-weight: normal;
+  color: #3c5a73;
+}
+
+/* ---------- One card per day ---------- */
+.day-card {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(11, 37, 64, 0.12);
+}
+
+.day-name {
+  margin: 0 0 12px 0;
+  font-size: 1.2rem;
+}
+
+/* ---------- The 4 time blocks inside a day ---------- */
+/* "grid" lines the blocks up in equal columns: 4 across on a laptop */
+.time-blocks {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.time-block {
+  padding: 12px;
+  background-color: #e3f0f9;
+  border-radius: 8px;
+}
+
+/* Remove the default gaps between the lines inside a block */
+.time-block p {
+  margin: 0;
+}
+
+.block-time {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #3c5a73;
+}
+
+/* The wave height is the most important number, so make it big */
+.time-block .block-waves {
+  margin: 4px 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #075985;
+}
+
+.block-detail {
+  font-size: 0.95rem;
+}
+
+/* ---------- Phones ---------- */
+/* On narrow screens, show the blocks 2 across instead of 4 */
+@media (max-width: 640px) {
+  .time-blocks {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .time-block .block-waves {
+    font-size: 1.3rem;
+  }
+}
