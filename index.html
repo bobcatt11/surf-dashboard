@@ -30,9 +30,17 @@
     <h2 class="section-title">5-Day Forecast</h2>
     <div id="forecast">Loading 5-day forecast...</div>
 
-    <!-- Surf spots we'll rank later (filled in by script.js) -->
+    <!-- Surf spots near you (filled in by script.js) -->
     <section class="surf-spots">
-      <h2 class="section-title">Surf Spots</h2>
+      <h2 class="section-title">Surf Spots Near You</h2>
+      <!-- Controls: a location button and a radius box -->
+      <div class="spot-controls">
+        <button id="use-my-location" type="button">Use my location</button>
+        <label for="radius">Within
+          <input id="radius" type="number" min="1" max="200" value="30"> miles
+        </label>
+      </div>
+      <p id="location-status"></p>
       <ul id="spot-list"></ul>
     </section>
 

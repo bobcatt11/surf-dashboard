@@ -226,18 +226,93 @@ function showLoadError(error) {
   document.getElementById("forecast").textContent = "";
 }
 
-// Show the list of surf spots: one line each with the name, the area,
-// and which way the beach faces (like "faces WSW").
+// ---------- Finding spots near you ----------
+
+// Where we measure distances from. It starts at Old Man's so the list
+// works straight away; the "Use my location" button replaces it.
+// This only lives in your browser while the page is open — it's never saved.
+let homeLocation = { name: "Old Man's", latitude: 32.805, longitude: -117.264 };
+
+// How far apart two places are, in miles, "as the crow flies".
+// This is the standard "haversine" formula for distances on a globe.
+// You don't need to follow the maths: it turns the latitude/longitude
+// differences into an angle, then multiplies by the Earth's radius.
+function distanceInMiles(latitude1, longitude1, latitude2, longitude2) {
+  const earthRadiusMiles = 3959;
+  const toRadians = degrees => degrees * Math.PI / 180;
+  const latitudeChange = toRadians(latitude2 - latitude1);
+  const longitudeChange = toRadians(longitude2 - longitude1);
+  const a = Math.sin(latitudeChange / 2) ** 2
+    + Math.cos(toRadians(latitude1)) * Math.cos(toRadians(latitude2))
+    * Math.sin(longitudeChange / 2) ** 2;
+  return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Show the spots within the chosen radius, nearest first.
+// Each line has the name, then the distance, area and which way it faces.
 function showSurfSpots() {
+  const radiusMiles = Number(document.getElementById("radius").value);
   const spotList = document.getElementById("spot-list");
-  for (const spot of surfSpots) {
+  spotList.textContent = "";
+
+  // Work out each spot's distance, keep the ones inside the radius,
+  // then sort so the smallest distance comes first
+  const nearbySpots = surfSpots
+    .map(spot => ({
+      ...spot,
+      distance: distanceInMiles(homeLocation.latitude, homeLocation.longitude, spot.latitude, spot.longitude),
+    }))
+    .filter(spot => spot.distance <= radiusMiles)
+    .sort((spotA, spotB) => spotA.distance - spotB.distance);
+
+  document.getElementById("location-status").textContent =
+    nearbySpots.length + " spots within " + radiusMiles + " miles of " + homeLocation.name;
+
+  if (nearbySpots.length === 0) {
+    spotList.appendChild(makeElement("li", "spot-item",
+      "No spots in range. Try a bigger radius."));
+    return;
+  }
+
+  for (const spot of nearbySpots) {
     const spotItem = makeElement("li", "spot-item", "");
     spotItem.appendChild(makeElement("span", "spot-item-name", spot.name));
     spotItem.appendChild(makeElement("span", "spot-item-detail",
-      spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
+      Math.round(spot.distance) + " mi · " + spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
     spotList.appendChild(spotItem);
   }
 }
+
+// Ask the browser where you are. The browser shows an "Allow location?"
+// popup first. If it works, measure from there; if you say no (or it fails),
+// keep the old starting point and explain what happened.
+function useMyLocation() {
+  const status = document.getElementById("location-status");
+  if (!navigator.geolocation) {
+    status.textContent = "Sorry, this browser can't share your location. Still measuring from " + homeLocation.name + ".";
+    return;
+  }
+  status.textContent = "Finding your location...";
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      homeLocation = {
+        name: "your location",
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      };
+      showSurfSpots();
+    },
+    () => {
+      status.textContent = "Couldn't get your location (permission may be turned off). Still measuring from "
+        + homeLocation.name + ".";
+    }
+  );
+}
+
+// Hook up the controls: the button asks for your location,
+// and changing the radius box redraws the list
+document.getElementById("use-my-location").addEventListener("click", useMyLocation);
+document.getElementById("radius").addEventListener("input", showSurfSpots);
 
 // The spot list doesn't need any data from the internet,
 // so show it straight away, even if the forecast fails to load
