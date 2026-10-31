@@ -23,14 +23,30 @@ function fetchData(url) {
   });
 }
 
-// Show the conditions right now at the top of the page
+// Turn a direction in degrees into a compass point, like 292 → "WNW".
+// The compass is split into 16 slices of 22.5° each (360 ÷ 16).
+// Dividing by 22.5 and rounding tells us which slice we're in.
+// "% 16" wraps slice 16 (anything near 360°) back round to "N".
+function toCompassPoint(degrees) {
+  const compassPoints = [
+    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
+  ];
+  const slice = Math.round(degrees / 22.5) % 16;
+  return compassPoints[slice];
+}
+
+// Show the conditions right now at the top of the page,
+// rounded so they're easy to read at a glance
 function showCurrentConditions(waveData, windData) {
   const waves = waveData.current;
   const wind = windData.current;
   document.getElementById("waves").textContent =
-    "Waves: " + waves.wave_height + " ft at " + waves.wave_period + " seconds, from " + waves.wave_direction + "°";
+    "Waves: " + waves.wave_height.toFixed(1) + " ft at " + Math.round(waves.wave_period) + " seconds, from "
+    + toCompassPoint(waves.wave_direction) + " (" + waves.wave_direction + "°)";
   document.getElementById("wind").textContent =
-    "Wind: " + wind.wind_speed_10m + " mph from " + wind.wind_direction_10m + "°";
+    "Wind: " + Math.round(wind.wind_speed_10m) + " mph from "
+    + toCompassPoint(wind.wind_direction_10m) + " (" + wind.wind_direction_10m + "°)";
 }
 
 // The 4 surfing time blocks in each day.
@@ -104,6 +120,19 @@ function makeElement(tagName, className, text) {
   return element;
 }
 
+// Rate a time block by its biggest wave:
+// 3 ft or more = good (green), 1 to 3 ft = fair (yellow), under 1 ft = poor (red).
+// The "className" matches a style in style.css that sets the colour.
+function rateBlock(summary) {
+  if (summary.biggestWave >= 3) {
+    return { label: "Good", className: "rating-good" };
+  }
+  if (summary.biggestWave >= 1) {
+    return { label: "Fair", className: "rating-fair" };
+  }
+  return { label: "Poor", className: "rating-poor" };
+}
+
 // Build the box for one time block: the time, a big wave height,
 // then the wave period/direction and the wind underneath.
 // toFixed(1) rounds to 1 decimal place, Math.round rounds to a whole number.
@@ -112,11 +141,15 @@ function makeBlockBox(label, summary) {
   if (summary.smallestWave.toFixed(1) === summary.biggestWave.toFixed(1)) {
     waveText = summary.smallestWave.toFixed(1) + " ft";
   }
-  const swellText = Math.round(summary.averagePeriod) + " s from " + summary.waveDirection + "°";
-  const windText = "Wind " + Math.round(summary.averageWindSpeed) + " mph from " + summary.windDirection + "°";
+  const swellText = Math.round(summary.averagePeriod) + " s from " + toCompassPoint(summary.waveDirection);
+  const windText = "Wind " + Math.round(summary.averageWindSpeed) + " mph from " + toCompassPoint(summary.windDirection);
 
-  const blockBox = makeElement("div", "time-block", "");
+  // The rating adds a colour class to the box, plus a word ("Good") so it
+  // still makes sense for anyone who can't easily tell the colours apart
+  const rating = rateBlock(summary);
+  const blockBox = makeElement("div", "time-block " + rating.className, "");
   blockBox.appendChild(makeElement("p", "block-time", label));
+  blockBox.appendChild(makeElement("p", "block-rating", rating.label));
   blockBox.appendChild(makeElement("p", "block-waves", waveText));
   blockBox.appendChild(makeElement("p", "block-detail", swellText));
   blockBox.appendChild(makeElement("p", "block-detail", windText));

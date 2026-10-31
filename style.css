@@ -73,6 +73,32 @@ h2 {
   font-size: 0.95rem;
 }
 
+/* The "Good / Fair / Poor" word under the time */
+.block-rating {
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ---------- Surf rating colours ---------- */
+/* A light background tint plus a thick coloured stripe on the left.
+   The text stays dark so it's still easy to read on every colour. */
+.rating-good {
+  background-color: #dcfce7;
+  border-left: 6px solid #15803d;
+}
+
+.rating-fair {
+  background-color: #fef9c3;
+  border-left: 6px solid #ca8a04;
+}
+
+.rating-poor {
+  background-color: #fee2e2;
+  border-left: 6px solid #b91c1c;
+}
+
 /* ---------- Phones ---------- */
 /* On narrow screens, show the blocks 2 across instead of 4 */
 @media (max-width: 640px) {
