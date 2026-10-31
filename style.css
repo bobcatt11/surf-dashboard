@@ -152,24 +152,6 @@ h1 {
   letter-spacing: 0.05em;
 }
 
-/* ---------- Surf rating colours ---------- */
-/* Faded, sun-bleached versions of green, yellow and red,
-   with a thick stripe down the left. Text stays dark so it's easy to read. */
-.rating-good {
-  background-color: #dcebc8;
-  border-left: 8px solid #4f7f2a;
-}
-
-.rating-fair {
-  background-color: #f7e2a6;
-  border-left: 8px solid var(--mustard);
-}
-
-.rating-poor {
-  background-color: #f3c9b5;
-  border-left: 8px solid var(--burnt-orange);
-}
-
 /* ---------- Surf spot list ---------- */
 /* Same sticker-style box as the other sections, with a teal shadow */
 .surf-spots {
@@ -236,13 +218,21 @@ h1 {
 }
 
 /* One spot per row, with a thin dashed line between rows */
+/* Each spot is a box. Scored spots also get a rating colour
+   (rating-good / rating-fair / rating-poor, further down this file) */
 .spot-item {
-  padding: 8px 0;
-  border-bottom: 1px dashed var(--faded-ink);
+  margin: 8px 0;
+  padding: 8px 12px;
+  border: 2px solid var(--ink);
 }
 
-.spot-item:last-child {
-  border-bottom: none;
+/* The "Score 8/10 · Good · light offshore wind" line */
+.spot-score {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 /* "display: block" puts the name and the detail on their own lines */
@@ -267,6 +257,27 @@ h1 {
 .spot-forecast-waves {
   font-family: "Bowlby One", Impact, sans-serif;
   font-weight: normal;
+}
+
+/* ---------- Surf rating colours ---------- */
+/* Used by the 5-day forecast blocks and the surf spot list.
+   This section comes after both, because when two CSS rules clash
+   the later one wins, and we want these stripes to win. */
+/* Faded, sun-bleached versions of green, yellow and red,
+   with a thick stripe down the left. Text stays dark so it's easy to read. */
+.rating-good {
+  background-color: #dcebc8;
+  border-left: 8px solid #4f7f2a;
+}
+
+.rating-fair {
+  background-color: #f7e2a6;
+  border-left: 8px solid var(--mustard);
+}
+
+.rating-poor {
+  background-color: #f3c9b5;
+  border-left: 8px solid var(--burnt-orange);
 }
 
 /* ---------- Phones ---------- */

@@ -256,25 +256,135 @@ function distanceInMiles(latitude1, longitude1, latitude2, longitude2) {
   return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Show the spots within the chosen radius, nearest first.
-// Each line has the name, then the distance, area and which way it faces.
+// ---------- Scoring each spot ----------
+
+// How far apart two compass directions are, from 0° (same way)
+// to 180° (opposite ways). For example 350° and 10° are 20° apart,
+// not 340°, because you can go the short way round past north.
+function angleBetween(direction1, direction2) {
+  const difference = Math.abs(direction1 - direction2) % 360;
+  return difference > 180 ? 360 - difference : difference;
+}
+
+// Describe the wind compared with which way the beach faces.
+// Wind directions say where the wind comes FROM. So:
+// - wind from the same way the beach faces = from the sea = "onshore" (bad: choppy)
+// - wind from the opposite way = from the land = "offshore" (good: clean waves)
+// - anything in between = "cross-shore"
+function describeWind(windSpeed, windDirection, facingDegrees) {
+  if (windSpeed <= 5) {
+    return "light";
+  }
+  const angle = angleBetween(windDirection, facingDegrees);
+  if (angle >= 120) {
+    return "offshore";
+  }
+  if (angle >= 60) {
+    return "cross-shore";
+  }
+  return "onshore";
+}
+
+// Give a spot a score out of 10 for one time block.
+// Points come from four things (change the numbers here to tune it):
+// - wave size: up to 3 points
+// - wave period: up to 2 points (longer period = cleaner, stronger waves)
+// - wind: up to 4 points (light or offshore is best, strong onshore is worst).
+//   Wind gets the most points because strong onshore wind ruins
+//   even big waves.
+// - swell direction: 1 point if the swell is heading roughly at the beach
+// Waves under 1 ft are too small to surf, so those spots score 3 at most.
+// It also returns a short reason, like "light wind".
+function scoreSpot(summary, facingDegrees) {
+  // Wave size, using the biggest wave in the block
+  let wavePoints = 0;
+  if (summary.biggestWave >= 3) wavePoints = 3;
+  else if (summary.biggestWave >= 2) wavePoints = 2;
+  else if (summary.biggestWave >= 1) wavePoints = 1;
+
+  // Wave period
+  let periodPoints = 0;
+  if (summary.averagePeriod >= 12) periodPoints = 2;
+  else if (summary.averagePeriod >= 8) periodPoints = 1;
+
+  // Wind
+  const windSpeed = summary.averageWindSpeed;
+  const windType = describeWind(windSpeed, summary.windDirection, facingDegrees);
+  // ("a ? b : c" means "if a, then b, otherwise c")
+  let windPoints = 0;
+  if (windType === "light") windPoints = 4;
+  else if (windType === "offshore") windPoints = windSpeed <= 15 ? 4 : 3;
+  else if (windType === "cross-shore") windPoints = windSpeed <= 10 ? 2 : 1;
+  else if (windType === "onshore") windPoints = windSpeed <= 10 ? 1 : 0;
+
+  // Swell direction: is the swell coming from roughly where the beach faces?
+  const swellPoints = angleBetween(summary.waveDirection, facingDegrees) <= 60 ? 1 : 0;
+
+  // Words for the reason: "light wind", or e.g. "strong onshore wind" over 15 mph
+  let windReason = windType + " wind";
+  if (windType !== "light" && windSpeed > 15) {
+    windReason = "strong " + windReason;
+  }
+  const swellReason = swellPoints === 1 ? "" : " · swell angled away";
+
+  // Too small to surf: cap the score at 3 and say why
+  let points = wavePoints + periodPoints + windPoints + swellPoints;
+  let reason = windReason + swellReason;
+  if (summary.biggestWave < 1) {
+    points = Math.min(points, 3);
+    reason = "too small · " + reason;
+  }
+
+  return { points, reason };
+}
+
+// Turn a score into the same Good / Fair / Poor colours as the 5-day forecast
+function rateScore(points) {
+  if (points >= 7) {
+    return { label: "Good", className: "rating-good" };
+  }
+  if (points >= 4) {
+    return { label: "Fair", className: "rating-fair" };
+  }
+  return { label: "Poor", className: "rating-poor" };
+}
+
+// Show the spots within the chosen radius, best score first.
+// (While the forecasts are still loading, they're sorted nearest first.)
+// Each spot shows its name, distance, area, which way it faces,
+// its score and the forecast.
 function showSurfSpots() {
   const radiusMiles = Number(document.getElementById("radius").value);
   const spotList = document.getElementById("spot-list");
   spotList.textContent = "";
 
-  // Work out each spot's distance, keep the ones inside the radius,
-  // then sort so the smallest distance comes first
+  // Work out each spot's distance and score, and keep the ones inside the radius.
+  // Spots with no forecast get a score of null (no score).
   const nearbySpots = surfSpots
     .map(spot => ({
       ...spot,
       distance: distanceInMiles(homeLocation.latitude, homeLocation.longitude, spot.latitude, spot.longitude),
+      score: spot.morningSummary ? scoreSpot(spot.morningSummary, spot.facingDegrees) : null,
     }))
-    .filter(spot => spot.distance <= radiusMiles)
-    .sort((spotA, spotB) => spotA.distance - spotB.distance);
+    .filter(spot => spot.distance <= radiusMiles);
 
-  document.getElementById("location-status").textContent =
-    nearbySpots.length + " spots within " + radiusMiles + " miles of " + homeLocation.name;
+  // Sort: highest score first. Spots with no score go to the bottom.
+  // If two spots have the same score, the nearer one comes first.
+  // (A sort compares two spots; a negative answer puts spotA first.)
+  nearbySpots.sort((spotA, spotB) => {
+    const pointsA = spotA.score ? spotA.score.points : -1;
+    const pointsB = spotB.score ? spotB.score.points : -1;
+    if (pointsA !== pointsB) {
+      return pointsB - pointsA;
+    }
+    return spotA.distance - spotB.distance;
+  });
+
+  let statusText = nearbySpots.length + " spots within " + radiusMiles + " miles of " + homeLocation.name;
+  if (spotForecastStatus === "ready") {
+    statusText = statusText + ", best first";
+  }
+  document.getElementById("location-status").textContent = statusText;
 
   if (nearbySpots.length === 0) {
     spotList.appendChild(makeElement("li", "spot-item",
@@ -282,12 +392,27 @@ function showSurfSpots() {
     return;
   }
 
+  let rank = 1;
   for (const spot of nearbySpots) {
     const spotItem = makeElement("li", "spot-item", "");
-    spotItem.appendChild(makeElement("span", "spot-item-name", spot.name));
+
+    // Spots with a score get a rank number, a colour and a score line
+    let nameText = spot.name;
+    if (spot.score) {
+      const rating = rateScore(spot.score.points);
+      spotItem.classList.add(rating.className);
+      nameText = "#" + rank + " " + spot.name;
+      rank = rank + 1;
+      spotItem.appendChild(makeElement("span", "spot-item-name", nameText));
+      spotItem.appendChild(makeElement("span", "spot-score",
+        "Score " + spot.score.points + "/10 · " + rating.label + " · " + spot.score.reason));
+    } else {
+      spotItem.appendChild(makeElement("span", "spot-item-name", nameText));
+    }
+
+    spotItem.appendChild(makeSpotForecastLine(spot));
     spotItem.appendChild(makeElement("span", "spot-item-detail",
       Math.round(spot.distance) + " mi · " + spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
-    spotItem.appendChild(makeSpotForecastLine(spot));
     spotList.appendChild(spotItem);
   }
 }
