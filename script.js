@@ -229,7 +229,7 @@ function showLoadError(error) {
 // ---------- Finding spots near you ----------
 
 // Where we measure distances from. It starts at Old Man's so the list
-// works straight away; the "Use my location" button replaces it.
+// works straight away; typing in a zip code replaces it.
 // This only lives in your browser while the page is open — it's never saved.
 let homeLocation = { name: "Old Man's", latitude: 32.805, longitude: -117.264 };
 
@@ -283,35 +283,47 @@ function showSurfSpots() {
   }
 }
 
-// Ask the browser where you are. The browser shows an "Allow location?"
-// popup first. If it works, measure from there; if you say no (or it fails),
-// keep the old starting point and explain what happened.
-function useMyLocation() {
+// Look up a US zip code and measure distances from there.
+// Zippopotam.us is a free website (no key needed) that turns a zip code
+// into a place name plus latitude/longitude. Its reply looks like:
+//   { "places": [ { "place name": "San Diego", "state abbreviation": "CA",
+//                   "latitude": "32.7977", "longitude": "-117.2357" } ] }
+// The names have spaces in them, so we use place["place name"] instead of place.placeName.
+function findZipCode(event) {
+  // Stop the form from reloading the page (its normal behaviour)
+  event.preventDefault();
+
   const status = document.getElementById("location-status");
-  if (!navigator.geolocation) {
-    status.textContent = "Sorry, this browser can't share your location. Still measuring from " + homeLocation.name + ".";
+  const zipCode = document.getElementById("zip-code").value.trim();
+
+  // A US zip code is exactly 5 digits: /^\d{5}$/ checks for that
+  if (!/^\d{5}$/.test(zipCode)) {
+    status.textContent = "Please enter a 5-digit zip code, like 92109.";
     return;
   }
-  status.textContent = "Finding your location...";
-  navigator.geolocation.getCurrentPosition(
-    position => {
+
+  status.textContent = "Looking up " + zipCode + "...";
+  fetchData("https://api.zippopotam.us/us/" + zipCode)
+    .then(zipData => {
+      const place = zipData.places[0];
       homeLocation = {
-        name: "your location",
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        name: zipCode + " (" + place["place name"] + ", " + place["state abbreviation"] + ")",
+        latitude: Number(place.latitude),
+        longitude: Number(place.longitude),
       };
       showSurfSpots();
-    },
-    () => {
-      status.textContent = "Couldn't get your location (permission may be turned off). Still measuring from "
-        + homeLocation.name + ".";
-    }
-  );
+    })
+    .catch(error => {
+      // An unknown zip code comes back as an error, as does no internet
+      console.error(error);
+      status.textContent = "Sorry, we couldn't find zip code " + zipCode
+        + ". Check it and try again. Still measuring from " + homeLocation.name + ".";
+    });
 }
 
-// Hook up the controls: the button asks for your location,
-// and changing the radius box redraws the list
-document.getElementById("use-my-location").addEventListener("click", useMyLocation);
+// Hook up the controls: submitting the zip code form (button or Enter key)
+// looks up the zip code, and changing the radius box redraws the list
+document.getElementById("zip-form").addEventListener("submit", findZipCode);
 document.getElementById("radius").addEventListener("input", showSurfSpots);
 
 // The spot list doesn't need any data from the internet,

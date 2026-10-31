@@ -195,7 +195,7 @@ h1 {
 }
 
 /* Chunky button with a hard shadow, to match the sticker style */
-#use-my-location {
+#find-spots {
   padding: 8px 14px;
   font: inherit;
   color: var(--paper);
@@ -205,7 +205,8 @@ h1 {
   cursor: pointer;
 }
 
-#radius {
+#radius,
+#zip-code {
   width: 4.5em;
   padding: 6px;
   font: inherit;

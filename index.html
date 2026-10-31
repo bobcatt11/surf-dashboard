@@ -33,13 +33,18 @@
     <!-- Surf spots near you (filled in by script.js) -->
     <section class="surf-spots">
       <h2 class="section-title">Surf Spots Near You</h2>
-      <!-- Controls: a location button and a radius box -->
-      <div class="spot-controls">
-        <button id="use-my-location" type="button">Use my location</button>
+      <!-- Controls: a zip code box and a radius box.
+           Using a <form> means pressing Enter also works.
+           inputmode="numeric" shows a number keypad on phones. -->
+      <form id="zip-form" class="spot-controls">
+        <label for="zip-code">Zip code
+          <input id="zip-code" type="text" inputmode="numeric" maxlength="5" placeholder="92109">
+        </label>
         <label for="radius">Within
           <input id="radius" type="number" min="1" max="200" value="30"> miles
         </label>
-      </div>
+        <button id="find-spots" type="submit">Find spots</button>
+      </form>
       <p id="location-status"></p>
       <ul id="spot-list"></ul>
     </section>
