@@ -5,5 +5,29 @@
   </head>
   <body>
     <h1>Surf Dashboard</h1>
+    <h2>Old Man's (Tourmaline), San Diego</h2>
+    <p id="waves">Loading waves...</p>
+    <p id="wind">Loading wind...</p>
+
+    <script>
+      const waveUrl = "https://marine-api.open-meteo.com/v1/marine?latitude=32.80&longitude=-117.27&current=wave_height,wave_period,wave_direction&timezone=America/Los_Angeles&length_unit=imperial";
+      const windUrl = "https://api.open-meteo.com/v1/forecast?latitude=32.80&longitude=-117.27&current=wind_speed_10m,wind_direction_10m&timezone=America/Los_Angeles&wind_speed_unit=mph";
+
+      fetch(waveUrl)
+        .then(response => response.json())
+        .then(data => {
+          const c = data.current;
+          document.getElementById("waves").textContent =
+            "Waves: " + c.wave_height + " ft at " + c.wave_period + " seconds, from " + c.wave_direction + "°";
+        });
+
+      fetch(windUrl)
+        .then(response => response.json())
+        .then(data => {
+          const c = data.current;
+          document.getElementById("wind").textContent =
+            "Wind: " + c.wind_speed_10m + " mph from " + c.wind_direction_10m + "°";
+        });
+    </script>
   </body>
 </html>
