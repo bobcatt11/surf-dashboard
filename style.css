@@ -247,6 +247,33 @@ h1 {
   letter-spacing: 0.03em;
 }
 
+/* ---------- 5-day forecast inside a spot card ---------- */
+/* The open/close box sits under today's blocks, with a dashed line above */
+.five-day {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--faded-ink);
+}
+
+/* The "Show next 5 days" line you tap. It's teal and underlined
+   so it looks tappable; the ▸ arrow comes built in with <details>. */
+.five-day-toggle {
+  padding: 6px 0;
+  font-weight: bold;
+  color: var(--pool-teal);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Each day's name, like "Monday, Nov 2", in marker font */
+.five-day-name {
+  margin: 12px 0 6px 0;
+  font-family: "Permanent Marker", cursive;
+  font-size: 1.05rem;
+  font-weight: normal;
+  color: var(--burnt-orange);
+}
+
 /* The short reason at the bottom of a time block, like "offshore wind" */
 .block-reason {
   margin-top: 4px;
