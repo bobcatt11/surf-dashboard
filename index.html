@@ -16,21 +16,11 @@
     <!-- Page title, with a skate-shoe checkerboard strip underneath -->
     <header class="page-header">
       <h1>Surf Dashboard</h1>
-      <p class="spot-name">Old Man's (Tourmaline), San Diego</p>
+      <p class="tagline">Where to surf today in San Diego</p>
       <div class="checkerboard"></div>
     </header>
 
-    <!-- Conditions right now -->
-    <section class="right-now">
-      <h2 class="section-title">Right Now</h2>
-      <p id="waves">Loading waves...</p>
-      <p id="wind">Loading wind...</p>
-    </section>
-
-    <h2 class="section-title">5-Day Forecast</h2>
-    <div id="forecast">Loading 5-day forecast...</div>
-
-    <!-- Surf spots near you (filled in by script.js) -->
+    <!-- Surf spots near you, best first (filled in by script.js) -->
     <section class="surf-spots">
       <h2 class="section-title">Surf Spots Near You</h2>
       <!-- Controls: a zip code box and a radius box.
@@ -46,7 +36,7 @@
         <button id="find-spots" type="submit">Find spots</button>
       </form>
       <p id="location-status"></p>
-      <!-- Says which morning the spot forecasts are for -->
+      <!-- Says which day the spot cards show: today, or tomorrow after 6 PM -->
       <p id="spot-forecast-time">Loading spot forecasts...</p>
       <ul id="spot-list"></ul>
     </section>
