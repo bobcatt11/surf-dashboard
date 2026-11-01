@@ -202,7 +202,7 @@ h1 {
   color: var(--faded-ink);
 }
 
-/* "Forecast for Sunday, Nov 1, 6–9 AM" */
+/* "Today, Sunday, Nov 1" (or "Tomorrow, ...") */
 #spot-forecast-time {
   margin: 0 0 4px 0;
   font-family: "Permanent Marker", cursive;
@@ -217,27 +217,17 @@ h1 {
   list-style: none;
 }
 
-/* One spot per row, with a thin dashed line between rows */
-/* Each spot is a box. Scored spots also get a rating colour
-   (rating-good / rating-fair / rating-poor, further down this file) */
+/* Each spot is a card holding its name, details and a row of time blocks */
 .spot-item {
-  margin: 8px 0;
-  padding: 8px 12px;
+  margin: 12px 0;
+  padding: 10px 12px 12px 12px;
   border: 2px solid var(--ink);
 }
 
-/* The "Score 8/10 · Good · light offshore wind" line */
-.spot-score {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-/* "display: block" puts the name and the detail on their own lines */
+/* "display: block" puts the name, detail and best-block lines on their own lines */
 .spot-item-name {
   display: block;
+  font-size: 1.15rem;
   font-weight: bold;
 }
 
@@ -247,16 +237,21 @@ h1 {
   color: var(--faded-ink);
 }
 
-/* The forecast line under each spot */
-.spot-forecast {
+/* The "Best: Good 8/10 at 6–9 AM" line, with space before the time blocks */
+.spot-score {
   display: block;
-  margin-top: 2px;
+  margin: 4px 0 10px 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* The wave height is the most important number, so make it chunky */
-.spot-forecast-waves {
-  font-family: "Bowlby One", Impact, sans-serif;
-  font-weight: normal;
+/* The short reason at the bottom of a time block, like "offshore wind" */
+.block-reason {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 /* ---------- Surf rating colours ---------- */
@@ -278,6 +273,15 @@ h1 {
 .rating-poor {
   background-color: #f3c9b5;
   border-left: 8px solid var(--burnt-orange);
+}
+
+/* Time blocks that are already over, or have no forecast:
+   plain grey with a dashed border. The text stays dark so it's
+   still easy to read (fading it out would make it hard to see). */
+.block-past,
+.block-no-data {
+  background-color: #e8e2d8;
+  border-style: dashed;
 }
 
 /* ---------- Phones ---------- */

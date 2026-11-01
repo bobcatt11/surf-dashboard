@@ -199,13 +199,7 @@ function showForecast(waveData, windData) {
   const windHourly = windData.hourly;
 
   // Make a list of the dates in the forecast, each one only once
-  const dates = [];
-  for (const time of waveHourly.time) {
-    const date = time.slice(0, 10);
-    if (!dates.includes(date)) {
-      dates.push(date);
-    }
-  }
+  const dates = listDates(waveHourly.time);
 
   const forecastArea = document.getElementById("forecast");
   forecastArea.textContent = "";
@@ -349,31 +343,37 @@ function rateScore(points) {
   return { label: "Poor", className: "rating-poor" };
 }
 
-// Show the spots within the chosen radius, best score first.
+// Show the spots within the chosen radius as cards, best first.
+// A spot's rank comes from its best time block that isn't over yet.
 // (While the forecasts are still loading, they're sorted nearest first.)
-// Each spot shows its name, distance, area, which way it faces,
-// its score and the forecast.
 function showSurfSpots() {
   const radiusMiles = Number(document.getElementById("radius").value);
   const spotList = document.getElementById("spot-list");
   spotList.textContent = "";
 
-  // Work out each spot's distance and score, and keep the ones inside the radius.
-  // Spots with no forecast get a score of null (no score).
+  // Work out each spot's distance, its time blocks for the day and its
+  // best block, and keep the spots inside the radius.
+  // Before the forecasts arrive, dayBlocks and bestBlock are null.
   const nearbySpots = surfSpots
-    .map(spot => ({
-      ...spot,
-      distance: distanceInMiles(homeLocation.latitude, homeLocation.longitude, spot.latitude, spot.longitude),
-      score: spot.morningSummary ? scoreSpot(spot.morningSummary, spot.facingDegrees) : null,
-    }))
+    .map(spot => {
+      const dayBlocks = spot.waveHourly && forecastDay
+        ? buildDayBlocks(spot, forecastDay.date, forecastDay.pastBeforeHour)
+        : null;
+      return {
+        ...spot,
+        distance: distanceInMiles(homeLocation.latitude, homeLocation.longitude, spot.latitude, spot.longitude),
+        dayBlocks: dayBlocks,
+        bestBlock: dayBlocks ? findBestBlock(dayBlocks) : null,
+      };
+    })
     .filter(spot => spot.distance <= radiusMiles);
 
-  // Sort: highest score first. Spots with no score go to the bottom.
+  // Sort: highest best-block score first. Spots with no score go to the bottom.
   // If two spots have the same score, the nearer one comes first.
   // (A sort compares two spots; a negative answer puts spotA first.)
   nearbySpots.sort((spotA, spotB) => {
-    const pointsA = spotA.score ? spotA.score.points : -1;
-    const pointsB = spotB.score ? spotB.score.points : -1;
+    const pointsA = spotA.bestBlock ? spotA.bestBlock.score.points : -1;
+    const pointsB = spotB.bestBlock ? spotB.bestBlock.score.points : -1;
     if (pointsA !== pointsB) {
       return pointsB - pointsA;
     }
@@ -396,23 +396,35 @@ function showSurfSpots() {
   for (const spot of nearbySpots) {
     const spotItem = makeElement("li", "spot-item", "");
 
-    // Spots with a score get a rank number, a colour and a score line
+    // Name, with a rank number if the spot has a score
     let nameText = spot.name;
-    if (spot.score) {
-      const rating = rateScore(spot.score.points);
-      spotItem.classList.add(rating.className);
+    if (spot.bestBlock) {
       nameText = "#" + rank + " " + spot.name;
       rank = rank + 1;
-      spotItem.appendChild(makeElement("span", "spot-item-name", nameText));
-      spotItem.appendChild(makeElement("span", "spot-score",
-        "Score " + spot.score.points + "/10 · " + rating.label + " · " + spot.score.reason));
-    } else {
-      spotItem.appendChild(makeElement("span", "spot-item-name", nameText));
     }
-
-    spotItem.appendChild(makeSpotForecastLine(spot));
+    spotItem.appendChild(makeElement("span", "spot-item-name", nameText));
     spotItem.appendChild(makeElement("span", "spot-item-detail",
       Math.round(spot.distance) + " mi · " + spot.area + " · faces " + toCompassPoint(spot.facingDegrees)));
+
+    // One line summing up the day: the best block, or why there isn't one
+    let bestText = "Loading forecast...";
+    if (spot.bestBlock) {
+      const rating = rateScore(spot.bestBlock.score.points);
+      bestText = "Best: " + rating.label + " " + spot.bestBlock.score.points + "/10 at " + spot.bestBlock.label;
+    } else if (spotForecastStatus === "failed" || spot.dayBlocks) {
+      bestText = "Forecast unavailable";
+    }
+    spotItem.appendChild(makeElement("span", "spot-score", bestText));
+
+    // The row of 4 time blocks for the day
+    if (spot.dayBlocks) {
+      const blockRow = makeElement("div", "time-blocks", "");
+      for (const block of spot.dayBlocks) {
+        blockRow.appendChild(makeSpotBlockBox(block));
+      }
+      spotItem.appendChild(blockRow);
+    }
+
     spotList.appendChild(spotItem);
   }
 }
@@ -420,39 +432,107 @@ function showSurfSpots() {
 // ---------- Forecasts for every surf spot ----------
 
 // Where the spot forecasts are up to: "loading", "ready" or "failed".
-// The spot list uses this to decide what to show under each spot.
+// The spot list uses this to decide what to show in each spot's card.
 let spotForecastStatus = "loading";
 
-// Build the forecast line shown under one spot, like
-// "2.8–3.1 ft · 12 s from WSW · Wind 5 mph from E".
-// While loading (or if it failed) it shows a short message instead.
-function makeSpotForecastLine(spot) {
-  if (spotForecastStatus === "loading") {
-    return makeElement("span", "spot-forecast", "Loading forecast...");
-  }
-  if (spotForecastStatus === "failed" || !spot.morningSummary) {
-    return makeElement("span", "spot-forecast", "Forecast unavailable");
-  }
-  const { waveText, swellText, windText } = describeConditions(spot.morningSummary);
-  const forecastLine = makeElement("span", "spot-forecast", "");
-  forecastLine.appendChild(makeElement("strong", "spot-forecast-waves", waveText));
-  forecastLine.appendChild(document.createTextNode(" · " + swellText + " · " + windText));
-  return forecastLine;
-}
+// Which day the spot cards show. It's filled in when the forecasts arrive,
+// and looks like { date: "2026-11-01", label: "Today, Sunday, Nov 1", pastBeforeHour: 10 }.
+// pastBeforeHour: any time block that finishes by this hour is already over.
+let forecastDay = null;
 
-// Find the date of the next 6–9 AM block that hasn't finished yet.
-// We look for the first 8 AM hour (the last hour of the block) that is
-// still now or later. Before 9 AM that's today; after 9 AM it's tomorrow.
-// The times are text like "2026-10-31T08:00", and text in this format
-// sorts in time order, so ">=" works for "is this now or later?".
-function findNextMorningDate(hourlyTimes, currentTime) {
+// Make a list of the dates in a forecast, each one only once,
+// like ["2026-11-01", "2026-11-02", ...]
+function listDates(hourlyTimes) {
+  const dates = [];
   for (const time of hourlyTimes) {
-    const hour = Number(time.slice(11, 13));
-    if (hour === 8 && time >= currentTime.slice(0, 13)) {
-      return time.slice(0, 10);
+    const date = time.slice(0, 10);
+    if (!dates.includes(date)) {
+      dates.push(date);
     }
   }
-  return null;
+  return dates;
+}
+
+// Pick which day to show, using the current San Diego time
+// (text like "2026-11-01T10:45"):
+// - before 6 PM: today. Blocks that have already finished count as "past".
+// - 6 PM or later: all of today's blocks are over, so show tomorrow.
+function chooseForecastDay(hourlyTimes, currentTime) {
+  const today = currentTime.slice(0, 10);
+  const currentHour = Number(currentTime.slice(11, 13));
+  if (currentHour < 18) {
+    return { date: today, label: "Today, " + formatDayLabel(today), pastBeforeHour: currentHour };
+  }
+  const dates = listDates(hourlyTimes);
+  const tomorrow = dates[dates.indexOf(today) + 1];
+  return { date: tomorrow, label: "Tomorrow, " + formatDayLabel(tomorrow), pastBeforeHour: 0 };
+}
+
+// Work out one spot's 4 time blocks for one day. For each block we keep:
+// - summary: the waves and wind (or null if the ocean model has no wave
+//   data there, which can happen right at the shoreline)
+// - score: its score out of 10 (or null if there's no summary)
+// - isPast: true if the block has already finished
+// A block finishes 3 hours after it starts, so the 6–9 AM block
+// is past once it's 9 AM or later.
+function buildDayBlocks(spot, date, pastBeforeHour) {
+  return timeBlocks.map(block => {
+    const positions = findHoursInBlock(spot.waveHourly.time, date, block.startHour);
+    const hasWaveData = positions.length === 3
+      && positions.every(position => spot.waveHourly.wave_height[position] !== null);
+    const summary = hasWaveData ? summarizeBlock(spot.waveHourly, spot.windHourly, positions) : null;
+    return {
+      label: block.label,
+      summary: summary,
+      score: summary ? scoreSpot(summary, spot.facingDegrees) : null,
+      isPast: block.startHour + 3 <= pastBeforeHour,
+    };
+  });
+}
+
+// Find the block with the highest score, skipping past blocks and
+// blocks with no data. If two blocks tie, the earlier one wins.
+// Returns null if there's nothing left to surf.
+function findBestBlock(dayBlocks) {
+  let bestBlock = null;
+  for (const block of dayBlocks) {
+    if (block.isPast || !block.score) {
+      continue;
+    }
+    if (!bestBlock || block.score.points > bestBlock.score.points) {
+      bestBlock = block;
+    }
+  }
+  return bestBlock;
+}
+
+// Build the box for one of a spot's time blocks.
+// Past blocks and blocks with no data get a plain grey box;
+// the rest are coloured by their score, like the 5-day forecast.
+function makeSpotBlockBox(block) {
+  if (block.isPast) {
+    const pastBox = makeElement("div", "time-block block-past", "");
+    pastBox.appendChild(makeElement("p", "block-time", block.label));
+    pastBox.appendChild(makeElement("p", "block-rating", "Past"));
+    return pastBox;
+  }
+  if (!block.summary) {
+    const noDataBox = makeElement("div", "time-block block-no-data", "");
+    noDataBox.appendChild(makeElement("p", "block-time", block.label));
+    noDataBox.appendChild(makeElement("p", "block-rating", "No data"));
+    return noDataBox;
+  }
+
+  const { waveText, swellText, windText } = describeConditions(block.summary);
+  const rating = rateScore(block.score.points);
+  const blockBox = makeElement("div", "time-block " + rating.className, "");
+  blockBox.appendChild(makeElement("p", "block-time", block.label));
+  blockBox.appendChild(makeElement("p", "block-rating", rating.label + " " + block.score.points + "/10"));
+  blockBox.appendChild(makeElement("p", "block-waves", waveText));
+  blockBox.appendChild(makeElement("p", "block-detail", swellText));
+  blockBox.appendChild(makeElement("p", "block-detail", windText));
+  blockBox.appendChild(makeElement("p", "block-reason", block.score.reason));
+  return blockBox;
 }
 
 // Ask Open-Meteo for the waves and wind at every spot at once.
@@ -476,26 +556,16 @@ function loadSpotForecasts() {
 
   Promise.all([fetchData(spotWaveUrl), fetchData(spotWindUrl)])
     .then(([waveList, windList]) => {
-      // Work out which morning to show, using the current San Diego time
-      // that the wave forecast sends back
-      const firstWaveHourly = waveList[0].hourly;
-      const morningDate = findNextMorningDate(firstWaveHourly.time, waveList[0].current.time);
-      const morningPositions = findHoursInBlock(firstWaveHourly.time, morningDate, 6);
-
-      // Add that morning's summary onto each spot, in the same order as surfSpots.
-      // If the ocean model has no wave data for a spot (it sends "null",
-      // which can happen right at the shoreline), leave it out rather than
-      // pretend the waves are 0 ft. The list then says "Forecast unavailable".
+      // Keep each spot's hourly forecast, in the same order as surfSpots
       surfSpots.forEach((spot, position) => {
-        const waveHourly = waveList[position].hourly;
-        const hasWaveData = morningPositions.every(hour => waveHourly.wave_height[hour] !== null);
-        spot.morningSummary = hasWaveData
-          ? summarizeBlock(waveHourly, windList[position].hourly, morningPositions)
-          : null;
+        spot.waveHourly = waveList[position].hourly;
+        spot.windHourly = windList[position].hourly;
       });
 
-      document.getElementById("spot-forecast-time").textContent =
-        "Forecast for " + formatDayLabel(morningDate) + ", 6–9 AM";
+      // Pick today or tomorrow, using the current San Diego time
+      // that the wave forecast sends back
+      forecastDay = chooseForecastDay(waveList[0].hourly.time, waveList[0].current.time);
+      document.getElementById("spot-forecast-time").textContent = forecastDay.label;
       spotForecastStatus = "ready";
       showSurfSpots();
     })
