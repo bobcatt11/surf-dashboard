@@ -423,6 +423,7 @@ function showSurfSpots() {
         blockRow.appendChild(makeSpotBlockBox(block));
       }
       spotItem.appendChild(blockRow);
+      spotItem.appendChild(makeFiveDayForecast(spot));
     }
 
     spotList.appendChild(spotItem);
@@ -535,6 +536,34 @@ function makeSpotBlockBox(block) {
   return blockBox;
 }
 
+// Build a spot's forecast for the next 5 days, tucked inside an open/close box.
+// <details> is a built-in HTML box: only its <summary> line shows at first,
+// and tapping that line opens or closes the rest. No extra code needed.
+// Inside is one row of 4 time blocks per day. It starts the day AFTER the
+// one shown on the card, so it doesn't repeat what's already on the card.
+function makeFiveDayForecast(spot) {
+  const details = makeElement("details", "five-day", "");
+  details.appendChild(makeElement("summary", "five-day-toggle", "Show next 5 days"));
+
+  // Keep the 5 days after the card's day. (We fetch 7 days so there are
+  // still 5 left after 6 PM, when the card itself shows tomorrow.)
+  const dates = listDates(spot.waveHourly.time)
+    .filter(date => date > forecastDay.date)
+    .slice(0, 5);
+  for (const date of dates) {
+    // These are all future days, so no blocks are past (0)
+    const dayBlocks = buildDayBlocks(spot, date, 0);
+
+    details.appendChild(makeElement("h4", "five-day-name", formatDayLabel(date)));
+    const blockRow = makeElement("div", "time-blocks", "");
+    for (const block of dayBlocks) {
+      blockRow.appendChild(makeSpotBlockBox(block));
+    }
+    details.appendChild(blockRow);
+  }
+  return details;
+}
+
 // Ask Open-Meteo for the waves and wind at every spot at once.
 // Open-Meteo lets one request cover many places: we list all the latitudes
 // separated by commas, then all the longitudes in the same order, and it
@@ -548,11 +577,11 @@ function loadSpotForecasts() {
     + "&longitude=" + longitudes
     + "&current=wave_height"
     + "&hourly=wave_height,wave_period,wave_direction"
-    + "&forecast_days=5&timezone=America/Los_Angeles&length_unit=imperial";
+    + "&forecast_days=7&timezone=America/Los_Angeles&length_unit=imperial";
   const spotWindUrl = "https://api.open-meteo.com/v1/forecast?latitude=" + latitudes
     + "&longitude=" + longitudes
     + "&hourly=wind_speed_10m,wind_direction_10m"
-    + "&forecast_days=5&timezone=America/Los_Angeles&wind_speed_unit=mph";
+    + "&forecast_days=7&timezone=America/Los_Angeles&wind_speed_unit=mph";
 
   Promise.all([fetchData(spotWaveUrl), fetchData(spotWindUrl)])
     .then(([waveList, windList]) => {
