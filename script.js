@@ -1,23 +1,9 @@
-// Web addresses for the free Open-Meteo APIs (no key needed).
-// Both point at Old Man's (Tourmaline) and use San Diego time.
-// "current=" asks for conditions right now.
-// "hourly=" plus "forecast_days=5" asks for every hour of the next 5 days.
-const waveUrl = "https://marine-api.open-meteo.com/v1/marine?latitude=32.80&longitude=-117.27"
-  + "&current=wave_height,wave_period,wave_direction"
-  + "&hourly=wave_height,wave_period,wave_direction"
-  + "&forecast_days=5&timezone=America/Los_Angeles&length_unit=imperial";
-const windUrl = "https://api.open-meteo.com/v1/forecast?latitude=32.80&longitude=-117.27"
-  + "&current=wind_speed_10m,wind_direction_10m"
-  + "&hourly=wind_speed_10m,wind_direction_10m"
-  + "&forecast_days=5&timezone=America/Los_Angeles&wind_speed_unit=mph";
-
 // Surf spots we might want to rank, listed north to south.
 // - latitude / longitude: roughly where the waves break (approximate, worth double-checking)
 // - facingDegrees: the compass direction the beach looks out toward the ocean
-//   (270 = due west). Later we'll use this to tell offshore wind from onshore wind,
-//   and whether a swell is pointed at the spot or missing it.
-// Trestles is in Orange County, about 45 miles from Old Man's, so it's handy
-// for testing the radius setting later.
+//   (270 = due west). The scoring uses this to tell offshore wind from onshore
+//   wind, and whether a swell is pointed at the spot or missing it.
+// To add a spot, copy a line and change the name, area and numbers.
 const surfSpots = [
   { name: "Trestles (Lowers)", area: "San Clemente", latitude: 33.382, longitude: -117.589, facingDegrees: 225 },
   { name: "Oceanside Pier", area: "Oceanside", latitude: 33.193, longitude: -117.386, facingDegrees: 245 },
@@ -60,19 +46,6 @@ function toCompassPoint(degrees) {
   ];
   const slice = Math.round(degrees / 22.5) % 16;
   return compassPoints[slice];
-}
-
-// Show the conditions right now at the top of the page,
-// rounded so they're easy to read at a glance
-function showCurrentConditions(waveData, windData) {
-  const waves = waveData.current;
-  const wind = windData.current;
-  document.getElementById("waves").textContent =
-    "Waves: " + waves.wave_height.toFixed(1) + " ft at " + Math.round(waves.wave_period) + " seconds, from "
-    + toCompassPoint(waves.wave_direction) + " (" + waves.wave_direction + "°)";
-  document.getElementById("wind").textContent =
-    "Wind: " + Math.round(wind.wind_speed_10m) + " mph from "
-    + toCompassPoint(wind.wind_direction_10m) + " (" + wind.wind_direction_10m + "°)";
 }
 
 // The 4 surfing time blocks in each day.
@@ -146,22 +119,8 @@ function makeElement(tagName, className, text) {
   return element;
 }
 
-// Rate a time block by its biggest wave:
-// 3 ft or more = good (green), 1 to 3 ft = fair (yellow), under 1 ft = poor (red).
-// The "className" matches a style in style.css that sets the colour.
-function rateBlock(summary) {
-  if (summary.biggestWave >= 3) {
-    return { label: "Good", className: "rating-good" };
-  }
-  if (summary.biggestWave >= 1) {
-    return { label: "Fair", className: "rating-fair" };
-  }
-  return { label: "Poor", className: "rating-poor" };
-}
-
 // Turn a time block's numbers into short bits of text, like
 // "2.8–3.1 ft", "12 s from WSW" and "Wind 5 mph from E".
-// Both the 5-day forecast and the surf spot list use this.
 // toFixed(1) rounds to 1 decimal place, Math.round rounds to a whole number.
 function describeConditions(summary) {
   let waveText = summary.smallestWave.toFixed(1) + "–" + summary.biggestWave.toFixed(1) + " ft";
@@ -173,67 +132,12 @@ function describeConditions(summary) {
   return { waveText, swellText, windText };
 }
 
-// Build the box for one time block: the time, a big wave height,
-// then the wave period/direction and the wind underneath.
-function makeBlockBox(label, summary) {
-  const { waveText, swellText, windText } = describeConditions(summary);
-
-  // The rating adds a colour class to the box, plus a word ("Good") so it
-  // still makes sense for anyone who can't easily tell the colours apart
-  const rating = rateBlock(summary);
-  const blockBox = makeElement("div", "time-block " + rating.className, "");
-  blockBox.appendChild(makeElement("p", "block-time", label));
-  blockBox.appendChild(makeElement("p", "block-rating", rating.label));
-  blockBox.appendChild(makeElement("p", "block-waves", waveText));
-  blockBox.appendChild(makeElement("p", "block-detail", swellText));
-  blockBox.appendChild(makeElement("p", "block-detail", windText));
-  return blockBox;
-}
-
-// Build the 5-day forecast: a card for each day,
-// holding a row of its 4 time blocks.
-// Both APIs return the same list of hours, so position 0 in the wave
-// data is the same hour as position 0 in the wind data.
-function showForecast(waveData, windData) {
-  const waveHourly = waveData.hourly;
-  const windHourly = windData.hourly;
-
-  // Make a list of the dates in the forecast, each one only once
-  const dates = listDates(waveHourly.time);
-
-  const forecastArea = document.getElementById("forecast");
-  forecastArea.textContent = "";
-
-  for (const date of dates) {
-    const dayCard = makeElement("section", "day-card", "");
-    dayCard.appendChild(makeElement("h3", "day-name", formatDayLabel(date)));
-
-    const blockRow = makeElement("div", "time-blocks", "");
-    for (const block of timeBlocks) {
-      const positions = findHoursInBlock(waveHourly.time, date, block.startHour);
-      const summary = summarizeBlock(waveHourly, windHourly, positions);
-      blockRow.appendChild(makeBlockBox(block.label, summary));
-    }
-    dayCard.appendChild(blockRow);
-    forecastArea.appendChild(dayCard);
-  }
-}
-
-// Shown if anything goes wrong (no internet, API down, etc.)
-function showLoadError(error) {
-  console.error(error);
-  document.getElementById("waves").textContent =
-    "Sorry, we couldn't load the surf forecast right now. Please try refreshing the page in a minute.";
-  document.getElementById("wind").textContent = "";
-  document.getElementById("forecast").textContent = "";
-}
-
 // ---------- Finding spots near you ----------
 
-// Where we measure distances from. It starts at Old Man's so the list
+// Where we measure distances from. It starts in Pacific Beach so the list
 // works straight away; typing in a zip code replaces it.
 // This only lives in your browser while the page is open — it's never saved.
-let homeLocation = { name: "Old Man's", latitude: 32.805, longitude: -117.264 };
+let homeLocation = { name: "Pacific Beach", latitude: 32.805, longitude: -117.264 };
 
 // How far apart two places are, in miles, "as the crow flies".
 // This is the standard "haversine" formula for distances on a globe.
@@ -332,7 +236,8 @@ function scoreSpot(summary, facingDegrees) {
   return { points, reason };
 }
 
-// Turn a score into the same Good / Fair / Poor colours as the 5-day forecast
+// Turn a score into Good / Fair / Poor, plus a colour.
+// The "className" matches a style in style.css that sets the colour.
 function rateScore(points) {
   if (points >= 7) {
     return { label: "Good", className: "rating-good" };
@@ -509,7 +414,7 @@ function findBestBlock(dayBlocks) {
 
 // Build the box for one of a spot's time blocks.
 // Past blocks and blocks with no data get a plain grey box;
-// the rest are coloured by their score, like the 5-day forecast.
+// the rest are coloured by their score.
 function makeSpotBlockBox(block) {
   if (block.isPast) {
     const pastBox = makeElement("div", "time-block block-past", "");
@@ -654,12 +559,3 @@ document.getElementById("radius").addEventListener("input", showSurfSpots);
 // then fetch the spot forecasts and fill them in when they arrive
 showSurfSpots();
 loadSpotForecasts();
-
-// Fetch the waves and the wind at the same time, then wait until BOTH have arrived.
-// The forecast needs both, so it's simpler to handle them together.
-Promise.all([fetchData(waveUrl), fetchData(windUrl)])
-  .then(([waveData, windData]) => {
-    showCurrentConditions(waveData, windData);
-    showForecast(waveData, windData);
-  })
-  .catch(showLoadError);
