@@ -152,7 +152,112 @@ h1 {
   letter-spacing: 0.05em;
 }
 
+/* ---------- Surf spot list ---------- */
+/* Same sticker-style box as the other sections, with a teal shadow */
+.surf-spots {
+  padding: 4px 16px 12px 16px;
+  margin-bottom: 24px;
+  background-color: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--pool-teal);
+}
+
+.surf-spots .section-title {
+  margin-top: 12px;
+}
+
+/* The location button and radius box sit in a row,
+   and wrap onto two lines if the screen is narrow */
+.spot-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  font-weight: 600;
+}
+
+/* Chunky button with a hard shadow, to match the sticker style */
+#find-spots {
+  padding: 8px 14px;
+  font: inherit;
+  color: var(--paper);
+  background-color: var(--pool-teal);
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+}
+
+#radius,
+#zip-code {
+  width: 4.5em;
+  padding: 6px;
+  font: inherit;
+  border: 2px solid var(--ink);
+}
+
+/* "Showing 12 spots within 30 miles of..." line */
+#location-status {
+  margin: 10px 0 4px 0;
+  font-size: 0.95rem;
+  color: var(--faded-ink);
+}
+
+/* "Today, Sunday, Nov 1" (or "Tomorrow, ...") */
+#spot-forecast-time {
+  margin: 0 0 4px 0;
+  font-family: "Permanent Marker", cursive;
+  font-size: 1.1rem;
+  color: var(--burnt-orange);
+}
+
+/* Remove the list bullets and indent */
+#spot-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each spot is a card holding its name, details and a row of time blocks */
+.spot-item {
+  margin: 12px 0;
+  padding: 10px 12px 12px 12px;
+  border: 2px solid var(--ink);
+}
+
+/* "display: block" puts the name, detail and best-block lines on their own lines */
+.spot-item-name {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: bold;
+}
+
+.spot-item-detail {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--faded-ink);
+}
+
+/* The "Best: Good 8/10 at 6–9 AM" line, with space before the time blocks */
+.spot-score {
+  display: block;
+  margin: 4px 0 10px 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* The short reason at the bottom of a time block, like "offshore wind" */
+.block-reason {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
 /* ---------- Surf rating colours ---------- */
+/* Used by the 5-day forecast blocks and the surf spot list.
+   This section comes after both, because when two CSS rules clash
+   the later one wins, and we want these stripes to win. */
 /* Faded, sun-bleached versions of green, yellow and red,
    with a thick stripe down the left. Text stays dark so it's easy to read. */
 .rating-good {
@@ -168,6 +273,15 @@ h1 {
 .rating-poor {
   background-color: #f3c9b5;
   border-left: 8px solid var(--burnt-orange);
+}
+
+/* Time blocks that are already over, or have no forecast:
+   plain grey with a dashed border. The text stays dark so it's
+   still easy to read (fading it out would make it hard to see). */
+.block-past,
+.block-no-data {
+  background-color: #e8e2d8;
+  border-style: dashed;
 }
 
 /* ---------- Phones ---------- */
